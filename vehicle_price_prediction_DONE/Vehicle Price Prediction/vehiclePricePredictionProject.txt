@@ -1,0 +1,138 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+df = pd.read_csv('dataset.csv')
+
+df.head(3)
+
+df = df.drop(['name', 'description','trim', 'exterior_color', 'interior_color'], axis=1)
+
+df.head(3)
+
+df.isnull().sum()
+
+df.shape
+
+len(df['fuel'].unique())
+
+(df['fuel'].unique())
+
+df = df.dropna(subset=["price"])
+
+numerical_cols = ["cylinders", "mileage", "doors"]
+for col in numerical_cols:
+    df[col] = df[col].fillna(df[col].median())
+
+categorical_cols = ["engine", "fuel", "transmission", "body", "drivetrain"]
+for col in categorical_cols:
+    df[col] = df[col].fillna("Unknown")
+
+# Checking for outliers:
+
+# Check for outliers in 'price' and 'mileage'
+price_outliers = df[(df["price"] == 0) | (df["price"] > df["price"].quantile(0.99))]
+mileage_outliers = df[df["mileage"] > df["mileage"].quantile(0.99)]
+
+
+# Removing extreme outliers
+
+df = df[~df.index.isin(price_outliers.index)]
+df = df[~df.index.isin(mileage_outliers.index)]
+
+df.info()
+
+df1 = df.copy()
+
+df1.head(3)
+
+features_count = ['make', 'model', 'engine', 'fuel', 'transmission', 'body', 'drivetrain']
+for fea in features_count:
+    print(f"Total length of {fea}: {len(df1[fea].unique())}")
+
+# len(df1['make'].unique())
+
+from sklearn.preprocessing import LabelEncoder
+
+categorical_cols = ["make", "model", "engine", "fuel", "transmission", "body", "drivetrain"]
+
+label_encoders = {}
+for col in categorical_cols:
+    le = LabelEncoder()
+    df1[col] = le.fit_transform(df1[col])
+    label_encoders[col] = le  # Store encoders for future inverse transformation if needed
+
+df1.head()
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+
+# Define features (X) and target (y)
+X = df1.drop(columns=["price"])  # All columns except 'price'
+y = df1["price"]  # Target variable
+
+# Split into train (80%) and test (20%) sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Define parameter grid
+param_grid = {
+    'n_estimators': [50, 100, 200, 300],
+    'max_depth': [None, 10, 20, 30],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4],
+    'bootstrap': [True, False]
+}
+
+# Apply RandomizedSearchCV
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import GridSearchCV
+rf_random = RandomizedSearchCV(
+    estimator=RandomForestRegressor(random_state=42), 
+    param_distributions=param_grid, 
+    n_iter=20, 
+    cv=5, 
+    verbose=2, 
+    n_jobs=-1, 
+    random_state=42
+)
+
+rf_random.fit(X_train, y_train)
+
+# Best parameters
+best_params = rf_random.best_params_
+print("Best Parameters:", best_params)
+
+# Train model with best parameters
+rf_model = RandomForestRegressor(**best_params, random_state=42)
+rf_model.fit(X_train, y_train)
+
+
+
+
+
+# Predictions and evaluation
+y_pred = rf_model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+mse
+
+r2
+
+def get_vehicle_price():
+    # Predefined vehicle features
+    vehicle_data = np.array([[15, 54, 2024, 65, 6.0, 4, 1.0, 19, 6, 4.0, 1]])
+
+    # Predict price using the trained model
+    predicted_price = rf_model.predict(vehicle_data)[0]
+
+    return f"🔹 Estimated Vehicle Price: ${predicted_price:,.2f}"
+
+# Call function
+print(get_vehicle_price())
+
+import joblib
+
+# Save the trained model
+joblib.dump(rf_model, "vehicle_price_model.pkl")
