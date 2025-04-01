@@ -57,10 +57,7 @@ To explore these projects, follow these steps:
 ## 🤝 **Contributing**
 We welcome contributions! Feel free to **open issues** and submit **pull requests** to enhance this repository.
 
----
 
-## 📜 **License**
-This repository is open-source under the **MIT License**.
 
 ---
 
